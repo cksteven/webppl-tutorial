@@ -1,64 +1,95 @@
 // Remove each element in array ys from array xs
-var remove = function(xs, ys) {
-    return _.without.apply(null, [xs].concat(ys));
-  };
+var remove = function (xs, ys) {
+  return _.without.apply(null, [xs].concat(ys));
+};
 
-  var doors = [1, 2, 3];
+var doors = [1, 2, 3];
 
-  // Monty chooses a door that is neither Alice's door
-  // nor the prize door
-  var monty = function(aliceDoor, prizeDoor) {
-    return Infer({
-      model() {
-        var door = uniformDraw(remove(doors, [aliceDoor, prizeDoor]));
-        return door;
-      }});
-  };
+// Monty chooses a door that is neither Alice's door
+// nor the prize door
+var monty = function (aliceDoor, prizeDoor) {
+  return Infer({
+    model() {
+      var door = uniformDraw(doors);
+      condition(door != aliceDoor);
+      condition(door != prizeDoor);
+      return door;
+    },
+  });
+};
 
+var actions = ["switch", "stay"];
 
-  var actions = ['switch', 'stay'];
-
-  // If Alice switches, she randomly chooses a door that is
-  // neither the one Monty showed nor her previous door
-  var transition = function(state, action) {
-    if (action === 'switch') {
-      return {
-        prizeDoor: state.prizeDoor,
-        montyDoor: state.montyDoor,
-        aliceDoor: uniformDraw(remove(doors, [state.montyDoor, state.aliceDoor]))
-      };
-    } else {
-      return state;
-    }
-  };
-
-  // Utility is high (say 10) if Alice's door matches the
-  // prize door, 0 otherwise.
-  var utility = function(state) {
-    return state.aliceDoor == state.prizeDoor ? 10 : 0;
-  };
-
-  var sampleState = function() {
-    var aliceDoor = uniformDraw(doors);
-    var prizeDoor = uniformDraw(doors);
+// If Alice switches, she randomly chooses a door that is
+// neither the one Monty showed nor her previous door
+var transition = function (state, action) {
+  if (action === "switch") {
     return {
-      aliceDoor,
-      prizeDoor,
-      montyDoor: sample(monty(aliceDoor, prizeDoor))
-    }
+      prizeDoor: state.prizeDoor,
+      montyDoor: state.montyDoor,
+      aliceDoor: uniformDraw(remove(doors, [state.montyDoor, state.aliceDoor])),
+    };
+  } else {
+    return state;
   }
+};
 
-  var agent = function() {
-    var action = uniformDraw(actions);
-    var expectedUtility = function(action){
-      return expectation(Infer({
+// Utility is high (say 10) if Alice's door matches the
+// prize door, 0 otherwise.
+var utility = function (state) {
+  return state.aliceDoor == state.prizeDoor ? 10 : 0;
+};
+
+var sampleState = function () {
+  var aliceDoor = uniformDraw(doors);
+  var prizeDoor = uniformDraw(doors);
+  return {
+    aliceDoor,
+    prizeDoor,
+    montyDoor: sample(monty(aliceDoor, prizeDoor)),
+  };
+};
+
+var agent = function () {
+  var action = uniformDraw(actions);
+  var expectedUtility = function (action) {
+    return expectation(
+      Infer({
         model() {
           var state = sampleState();
           return utility(transition(state, action));
-        }}));
-    };
-    factor(expectedUtility(action));
-    return { action };
+        },
+      })
+    );
   };
+  factor(expectedUtility(action)); // softmax agent, we implicitly use alpha = 1 here
+  return { action };
+};
 
 viz(Infer({ model: agent }));
+
+/**
+ * NOTE: this model does not return P(win|action),
+ * which is 2/3 if switching and 1/3 if staying.
+ * Instead, it returns the probability of a softmax agent
+ * (to represent human irrationality) choosing the action
+ * based on the expected utility, i.e. P(action|softmax(EU)).
+ *
+ * softmax decision rule:
+ * C(a;s) ∝ exp(α * E(U(T(s,a))))
+ *
+ * https://agentmodels.org/chapters/3-agents-as-programs.html
+ */
+
+// To show P(win|action), run the code below:
+//
+// viz(
+//   Infer({
+//     model() {
+//       var action = uniformDraw(actions);
+//       var state = sampleState();
+//       condition(utility(transition(state, action)) == 10);
+//       return action;
+//     },
+//   })
+// );
