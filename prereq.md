@@ -9,6 +9,7 @@
 
   - CHECK THIS: https://github.com/Automattic/node-canvas/#installation
   - npm install probmods/webppl-viz
+  - npm install -g grunt-cli
 - check versions
 
   (py39) kesong@Kesongs-MacBook-Pro webppl-tutorial % npm list --global --depth=0
