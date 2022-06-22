@@ -1,0 +1,67 @@
+var updateBelief = function(belief, observation, action){
+  return Infer({ model() {
+    // marginal probablility of transitioning to s'
+    var state = sample(belief); // s ∼ S
+    var predictedNextState = transition(state, action);
+
+    // probability of the observation o occuring in s'
+    var predictedObservation = observe(predictedNextState);
+    // below: make sure our sampled s can/only transit into s'
+    // i.e. predictedObservation == s' (nextObservation).
+    condition(_.isEqual(predictedObservation, observation));
+
+    // return a probability distribution over states b(s')
+    return predictedNextState;
+  }});
+};
+
+var act = function(belief) {
+  return Infer({ model() {
+    var action = uniformDraw(actions);
+    var eu = expectedUtility(belief, action);
+    factor(alpha * eu);
+    return action;
+  }});
+};
+
+var expectedUtility = function(belief, action) {
+  return expectation(
+    Infer({ model() {
+      var state = sample(belief);
+      var u = utility(state, action);
+      if (state.terminateAfterAction) {
+        return u;
+      } else {
+        var nextState = transition(state, action);
+        var nextObservation = observe(nextState);
+        var nextBelief = updateBelief(belief, nextObservation, action);
+        var nextAction = sample(act(nextBelief));
+        return u + expectedUtility(nextBelief, nextAction);
+      }
+    }}));
+  };
+
+  // To simulate the agent, we need to transition
+  // the state, sample an observation, then
+  // compute agent's action (after agent has updated belief).
+
+  // *startState* is agent's actual startState (unknown to agent)
+  // *priorBelief* is agent's initial belief function
+
+  var simulate = function(startState, priorBelief) {
+
+    var sampleSequence = function(state, priorBelief, action) {
+      var observation = observe(state);
+      var belief = updateBelief(priorBelief, observation, action);
+      var action = sample(act(belief));
+      var output = [ [state, action] ];
+
+      if (state.terminateAfterAction){
+        return output;
+      } else {
+        var nextState = transition(state, action);
+        return output.concat(sampleSequence(nextState, belief, action));
+      }
+    };
+    return sampleSequence(startState, priorBelief, 'noAction');
+  };
