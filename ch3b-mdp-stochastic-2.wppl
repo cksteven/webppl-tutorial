@@ -1,0 +1,74 @@
+///fold: makeHikeMDP, set up world
+var makeHikeMDP = function(options) {
+  var H = { name: 'Hill' };
+  var W = { name: 'West' };
+  var E = { name: 'East' };
+  var ___ = ' ';
+  var grid = [
+    [___, ___, ___, ___, ___],
+    [___, '#', ___, ___, ___],
+    [___, '#',  W , '#',  E ],
+    [___, ___, ___, ___, ___],
+    [ H ,  H ,  H ,  H ,  H ]
+  ];
+  return makeGridWorldMDP(_.assign({ grid }, options));
+};
+
+var mdp = makeHikeMDP({
+  start: [0, 1],
+  totalTime: 13,
+  transitionNoiseProbability: 0.1
+});
+
+var world = mdp.world;
+var startState = mdp.startState;
+var makeUtilityFunction = mdp.makeUtilityFunction;
+///
+
+// Create parameterized agent
+// var utility = makeUtilityFunction({
+//   East: 10,
+//   West: 1,
+//   Hill: -10,
+//   timeCost: -.1
+// });
+
+var utility = makeUtilityFunction({
+    East: 100,
+    West: 75,
+    Hill: -1,
+    timeCost: -5
+  });
+
+// var alpha = 1;  // <- SOFTMAX NOISE
+var alpha = .1;  // <- SOFTMAX NOISE
+
+var agent = makeMDPAgent({ utility, alpha }, world);
+
+// Generate a single trajectory, draw
+var trajectory = simulateMDP(startState, world, agent, 'states');
+viz.gridworld(world, { trajectory });
+
+// Generate 100 trajectories, plot distribution on lengths
+var trajectoryDist = Infer({
+  model() {
+    var trajectory = simulateMDP(startState, world, agent);
+    return { trajectoryLength: trajectory.length }
+  },
+  method: 'forward',
+  samples: 100
+});
+viz(trajectoryDist);
+
+/**
+ * Exercise: Use the codebox below to explore different levels of
+ * softmax noise. Find a setting of utilityTable and alpha such
+ * that the agent goes to West and East equally often and nearly
+ * always takes the most direct route to both East and West.
+ * Included below is code for simulating many trajectories and
+ * returning the trajectory length. You can extend this code to
+ * measure whether the route taken by the agent is direct or not.
+ * (Note that while the softmax agent here is able to “backtrack”
+ * or return to its previous location, in later Gridworld examples
+ * we disalllow backtracking as a possible action).
+ */

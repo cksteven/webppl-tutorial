@@ -84,4 +84,7 @@ print("Agent's trajectory: " + simulate(startState, totalTime));
  * In other words, agent can have multiple ways/paths to move to a state
  * using the same amount of time. The same sate can be reached using
  * multiple trajectories in the same amount of time.
+ *
+ * Or is it not? I'm not 100% sure since later code doesn't memoize simulate.
+ * I'll follow their code, not memoizing stimulate.
  */
